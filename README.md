@@ -1,5 +1,10 @@
 # Certificate Manager Library
 
+[![codecov](https://codecov.io/gh/CharlyF/admission-controller-cert-mgmt/branch/main/graph/badge.svg)](https://codecov.io/gh/CharlyF/admission-controller-cert-mgmt)
+[![Go Report Card](https://goreportcard.com/badge/github.com/CharlyF/admission-controller-cert-mgmt)](https://goreportcard.com/report/github.com/CharlyF/admission-controller-cert-mgmt)
+
+
+
 This library can be used as a lightweight replacement of the [certificate manager](https://cert-manager.io/).
 
 It's use is limited to self signed certificates from the APIServer.
