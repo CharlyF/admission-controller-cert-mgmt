@@ -20,8 +20,8 @@ import (
 )
 
 const (
-	certKey             = "cert.pem"
-	keyKey              = "key.pem"
+	certKey = "cert.pem"
+	keyKey  = "key.pem"
 )
 
 // GenerateSecretData generates the content of Secret.Data
