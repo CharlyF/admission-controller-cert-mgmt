@@ -1,6 +1,5 @@
 Component,Origin,License
 core,"github.com/frapposelli/wwhrd",MIT
-core,"cloud.google.com/go/compute/metadata",Apache-2.0
 core,"github.com/davecgh/go-spew/spew",ISC
 core,"github.com/emicklei/go-restful",MIT
 core,"github.com/emicklei/go-restful/log",MIT
@@ -48,12 +47,7 @@ core,"golang.org/x/net/http2",NewBSD
 core,"golang.org/x/net/http2/hpack",NewBSD
 core,"golang.org/x/net/idna",NewBSD
 core,"golang.org/x/oauth2",NewBSD
-core,"golang.org/x/oauth2/authhandler",NewBSD
-core,"golang.org/x/oauth2/google",NewBSD
-core,"golang.org/x/oauth2/google/internal/externalaccount",NewBSD
 core,"golang.org/x/oauth2/internal",NewBSD
-core,"golang.org/x/oauth2/jws",NewBSD
-core,"golang.org/x/oauth2/jwt",NewBSD
 core,"golang.org/x/sync/errgroup",NewBSD
 core,"golang.org/x/sys/internal/unsafeheader",NewBSD
 core,"golang.org/x/sys/plan9",NewBSD
@@ -65,13 +59,10 @@ core,"golang.org/x/text/transform",NewBSD
 core,"golang.org/x/text/unicode/bidi",NewBSD
 core,"golang.org/x/text/unicode/norm",NewBSD
 core,"golang.org/x/time/rate",NewBSD
-core,"google.golang.org/appengine",Apache-2.0
 core,"google.golang.org/appengine/internal",Apache-2.0
-core,"google.golang.org/appengine/internal/app_identity",Apache-2.0
 core,"google.golang.org/appengine/internal/base",Apache-2.0
 core,"google.golang.org/appengine/internal/datastore",Apache-2.0
 core,"google.golang.org/appengine/internal/log",Apache-2.0
-core,"google.golang.org/appengine/internal/modules",Apache-2.0
 core,"google.golang.org/appengine/internal/remote_api",Apache-2.0
 core,"google.golang.org/appengine/internal/urlfetch",Apache-2.0
 core,"google.golang.org/appengine/urlfetch",Apache-2.0
@@ -442,12 +433,10 @@ core,"k8s.io/client-go/pkg/apis/clientauthentication/v1",Apache-2.0
 core,"k8s.io/client-go/pkg/apis/clientauthentication/v1beta1",Apache-2.0
 core,"k8s.io/client-go/pkg/version",Apache-2.0
 core,"k8s.io/client-go/plugin/pkg/client/auth/exec",Apache-2.0
-core,"k8s.io/client-go/plugin/pkg/client/auth/gcp",Apache-2.0
 core,"k8s.io/client-go/rest",Apache-2.0
 core,"k8s.io/client-go/rest/fake",Apache-2.0
 core,"k8s.io/client-go/rest/watch",Apache-2.0
 core,"k8s.io/client-go/testing",Apache-2.0
-core,"k8s.io/client-go/third_party/forked/golang/template",Apache-2.0
 core,"k8s.io/client-go/tools/cache",Apache-2.0
 core,"k8s.io/client-go/tools/clientcmd/api",Apache-2.0
 core,"k8s.io/client-go/tools/metrics",Apache-2.0
@@ -457,7 +446,6 @@ core,"k8s.io/client-go/transport",Apache-2.0
 core,"k8s.io/client-go/util/cert",Apache-2.0
 core,"k8s.io/client-go/util/connrotation",Apache-2.0
 core,"k8s.io/client-go/util/flowcontrol",Apache-2.0
-core,"k8s.io/client-go/util/jsonpath",Apache-2.0
 core,"k8s.io/client-go/util/keyutil",Apache-2.0
 core,"k8s.io/client-go/util/workqueue",Apache-2.0
 core,"k8s.io/klog/v2",Apache-2.0

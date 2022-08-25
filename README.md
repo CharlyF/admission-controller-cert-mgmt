@@ -16,6 +16,7 @@ package main
 
 import (
 	"time"
+	"context"
 	"github.com/CharlyF/admission-controller-cert-mgmt/pkg/admission"
 	"github.com/CharlyF/admission-controller-cert-mgmt/pkg/config"
 	log "github.com/sirupsen/logrus"
@@ -34,15 +35,24 @@ func main() {
 
 	crt := config.NewCertConfig(1*time.Hour, 2*time.Hour)
 	cfg := config.NewConfig("default", "default-secret", "my-service", crt)
-	ctx := admission.ControllerContext{
+
+	// Context can be inherited from a parent process.
+	ctx, cancel := context.WithCancel(context.Background)
+	defer cancel()
+
+	controllerCtx := admission.ControllerContext{
 		IsLeaderFunc:        isLeader,
 		LeaderSubscribeFunc: subscriber,
 		Client:              cl,
 		InformerResync:      300 * time.Second,
 		Config:              cfg,
+		Stop:                ctx,
 	}
 
-	admission.Start(ctx)
+	err := admission.Start(controllerCtx)
+	if err != nil {
+		log.WithFields(log.Fields{"error": err}).Error("Error running the Certificate Controller")
+	}
 }
 
 func GetKubeClient(timeout time.Duration) (kubernetes.Interface, error) {

@@ -1,10 +1,10 @@
 package admission
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"time"
-
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 
 	"github.com/CharlyF/admission-controller-cert-mgmt/pkg/config"
 	"github.com/CharlyF/admission-controller-cert-mgmt/pkg/controller"
@@ -21,22 +21,21 @@ import (
 type ControllerContext struct {
 	IsLeaderFunc        func() bool
 	LeaderSubscribeFunc func() <-chan struct{}
-	StopCh              chan struct{}
+	Stop                context.Context
 	Client              kubernetes.Interface
 	InformerResync      time.Duration
 	ExtraSyncWait       time.Duration
 	config.Config
 }
 
-func Start(ctx ControllerContext) {
+func Start(ctx ControllerContext) error {
 	if ctx.GetCertExpiration() >= ctx.GetCertValidityBound() {
-		log.WithFields(log.Fields{
-			"expirationThreshold": ctx.GetCertExpiration(),
-			"validityBound":       ctx.GetCertValidityBound(),
-		}).Error("Validity of the certificate has to be greater than the expiration threshold")
-		return
+		err := fmt.Errorf("validity of the certificate: %v has to be greater than the expiration threshold: %v", ctx.GetCertExpiration(), ctx.GetCertValidityBound())
+		return err
 	}
 	log.Info("Starting Certificate Manager Controller")
+	stopCh := make(chan struct{})
+	defer close(stopCh)
 	nameFieldkey := "metadata.name"
 	optionsForService := func(options *metav1.ListOptions) {
 		options.FieldSelector = fields.OneTermEqualSelector(nameFieldkey, ctx.GetName()).String()
@@ -66,16 +65,17 @@ func Start(ctx ControllerContext) {
 		secretConfig,
 	)
 
-	go secretController.Run(ctx.StopCh)
+	go secretController.Run(stopCh)
 
-	secretInformers.Start(ctx.StopCh)
+	secretInformers.Start(stopCh)
 	err := controller.SyncInformers(secretInformers.Core().V1().Secrets().Informer(), ctx.ExtraSyncWait)
 	if err != nil {
 		log.WithFields(log.Fields{"error": err}).Error("Could not sync Informers")
-		return
+		return err
 	}
-	<-ctx.StopCh
+	<-ctx.Stop.Done()
 	log.Info("Stopping Certificate Manager Controller")
+	return nil
 }
 
 func init() {
