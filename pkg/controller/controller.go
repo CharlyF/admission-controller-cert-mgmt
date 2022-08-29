@@ -41,6 +41,23 @@ type Controller struct {
 	isLeaderNotif  <-chan struct{}
 }
 
+func InitializeLocalCert(config config.Config, path string) error {
+	dnsNames := generateDNSNames(config.GetNs(), config.GetSvc())
+	data, err := certificate.GenerateSecretData(notAfter(config.GetCertValidityBound()), notBefore(), dnsNames)
+	if err != nil {
+		return err
+	}
+	err = os.WriteFile(filepath.Join(path, certificate.CertKey), data[certificate.CertKey], 0644)
+	if err != nil {
+		return err
+	}
+	err = os.WriteFile(filepath.Join(path, certificate.PrivateKey), data[certificate.PrivateKey], 0644)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // NewController returns a new Secret Controller.
 func NewController(client kubernetes.Interface, secretInformer coreinformers.SecretInformer, localPath string, isLeaderFunc func() bool, isLeaderNotif <-chan struct{}, config config.Config) *Controller {
 	dnsNames := generateDNSNames(config.GetNs(), config.GetSvc())
@@ -230,7 +247,7 @@ func (c *Controller) reconcile() error {
 
 // createSecret creates a new Secret object with a new certificate
 func (c *Controller) createSecret() error {
-	data, err := certificate.GenerateSecretData(notBefore(), c.notAfter(), c.dnsNames)
+	data, err := certificate.GenerateSecretData(notBefore(), notAfter(c.config.GetCertValidityBound()), c.dnsNames)
 	if err != nil {
 		return fmt.Errorf("failed to generate the Secret data: %v", err)
 	}
@@ -262,7 +279,7 @@ func (c *Controller) createSecret() error {
 
 // updateSecret stores a new certificate in the Secret object
 func (c *Controller) updateSecret(secret *corev1.Secret) error {
-	data, err := certificate.GenerateSecretData(notBefore(), c.notAfter(), c.dnsNames)
+	data, err := certificate.GenerateSecretData(notBefore(), notAfter(c.config.GetCertValidityBound()), c.dnsNames)
 	if err != nil {
 		return fmt.Errorf("failed to generate the Secret data: %v", err)
 	}
@@ -287,8 +304,8 @@ func (c *Controller) updateSecret(secret *corev1.Secret) error {
 }
 
 // notAfter defines the validity bounds when creating a new certificate
-func (c *Controller) notAfter() time.Time {
-	return time.Now().Add(c.config.GetCertValidityBound())
+func notAfter(validity time.Duration) time.Time {
+	return time.Now().Add(validity)
 }
 
 // notBefore defines the validity bounds when creating a new certificate
