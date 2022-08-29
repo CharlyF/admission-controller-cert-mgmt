@@ -81,7 +81,7 @@ func (c *Controller) Run(stopCh <-chan struct{}) {
 
 	go c.enqueueOnLeaderNotif(stopCh)
 	go wait.Until(c.run, time.Second, stopCh)
-
+	log.Info("About to trigger Reconciliation")
 	// Trigger a reconciliation to create the Secret if it doesn't exist
 	c.triggerReconciliation()
 	<-stopCh
@@ -169,7 +169,7 @@ func (c *Controller) processNextWorkItem() bool {
 		return false
 	}
 	defer c.queue.Done(key)
-	log.WithFields(log.Fields{"key": key}).Debug("Processing key")
+	log.WithFields(log.Fields{"key": key}).Info("Processing key")
 	if err := c.reconcile(); err != nil {
 		c.requeue(key)
 		log.WithFields(log.Fields{
@@ -242,9 +242,22 @@ func (c *Controller) createSecret() error {
 		},
 		Data: data,
 	}
-
+	log.Info("Creating Secret")
 	_, err = c.clientSet.CoreV1().Secrets(c.config.GetNs()).Create(context.TODO(), secret, metav1.CreateOptions{})
-	return err
+	if err != nil {
+		return err
+	}
+	if c.hostPath != "" {
+		err = os.WriteFile(filepath.Join(c.hostPath, certificate.CertKey), data[certificate.CertKey], 0644)
+		if err != nil {
+			return err
+		}
+		err = os.WriteFile(filepath.Join(c.hostPath, certificate.PrivateKey), data[certificate.PrivateKey], 0644)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // updateSecret stores a new certificate in the Secret object
