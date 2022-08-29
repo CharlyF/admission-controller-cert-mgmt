@@ -179,6 +179,7 @@ func (f *fixture) run(t *testing.T) *Controller {
 	c := NewController(
 		f.client,
 		factory.Core().V1().Secrets(),
+		"",
 		func() bool { return true },
 		make(chan struct{}),
 		cfg,

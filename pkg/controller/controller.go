@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
+	"os"
+	"path/filepath"
 	"sort"
 	"time"
 
@@ -30,6 +32,7 @@ type Controller struct {
 	clientSet      kubernetes.Interface
 	secretsLister  corelisters.SecretLister
 	secretsSynced  cache.InformerSynced
+	hostPath       string
 	config         config.Config
 	dnsNames       []string
 	dnsNamesDigest uint64
@@ -39,13 +42,14 @@ type Controller struct {
 }
 
 // NewController returns a new Secret Controller.
-func NewController(client kubernetes.Interface, secretInformer coreinformers.SecretInformer, isLeaderFunc func() bool, isLeaderNotif <-chan struct{}, config config.Config) *Controller {
+func NewController(client kubernetes.Interface, secretInformer coreinformers.SecretInformer, localPath string, isLeaderFunc func() bool, isLeaderNotif <-chan struct{}, config config.Config) *Controller {
 	dnsNames := generateDNSNames(config.GetNs(), config.GetSvc())
 	controller := &Controller{
 		clientSet:      client,
 		config:         config,
 		secretsLister:  secretInformer.Lister(),
 		secretsSynced:  secretInformer.Informer().HasSynced,
+		hostPath:       localPath,
 		dnsNames:       dnsNames,
 		dnsNamesDigest: digestDNSNames(dnsNames),
 		queue:          workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "secrets"),
@@ -253,7 +257,20 @@ func (c *Controller) updateSecret(secret *corev1.Secret) error {
 	secret = secret.DeepCopy()
 	secret.Data = data
 	_, err = c.clientSet.CoreV1().Secrets(c.config.GetNs()).Update(context.TODO(), secret, metav1.UpdateOptions{})
-	return err
+	if err != nil {
+		return err
+	}
+	if c.hostPath != "" {
+		err = os.WriteFile(filepath.Join(c.hostPath, certificate.CertKey), data[certificate.CertKey], 0644)
+		if err != nil {
+			return err
+		}
+		err = os.WriteFile(filepath.Join(c.hostPath, certificate.PrivateKey), data[certificate.PrivateKey], 0644)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // notAfter defines the validity bounds when creating a new certificate

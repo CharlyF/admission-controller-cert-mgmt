@@ -20,8 +20,8 @@ import (
 )
 
 const (
-	certKey = "cert.pem"
-	keyKey  = "key.pem"
+	CertKey    = "cert.pem"
+	PrivateKey = "key.pem"
 )
 
 // GenerateSecretData generates the content of Secret.Data
@@ -35,17 +35,17 @@ func GenerateSecretData(notBefore, notAfter time.Time, hosts []string) (map[stri
 		return nil, fmt.Errorf("failed to generate certificate: %v", err)
 	}
 	data := map[string][]byte{
-		certKey: certPEM,
-		keyKey:  keyPEM,
+		CertKey:    certPEM,
+		PrivateKey: keyPEM,
 	}
 	return data, nil
 }
 
 // GetCertFromSecret returns the x509.Certificate from Secret.Data.
 func GetCertFromSecret(data map[string][]byte) (*x509.Certificate, error) {
-	certPEM, ok := data[certKey]
+	certPEM, ok := data[CertKey]
 	if !ok {
-		return nil, fmt.Errorf("the Secret data doesn't contain an entry for %q", certKey)
+		return nil, fmt.Errorf("the Secret data doesn't contain an entry for %q", CertKey)
 	}
 
 	certAsn1, _ := pem.Decode(certPEM)
@@ -68,12 +68,12 @@ func GetDNSNames(cert *x509.Certificate) []string {
 
 // ParseSecretData return the tls.Certificate contained in the provided Secret.Data.
 func ParseSecretData(data map[string][]byte) (tls.Certificate, error) {
-	return tls.X509KeyPair(data[certKey], data[keyKey])
+	return tls.X509KeyPair(data[CertKey], data[PrivateKey])
 }
 
 // GetCABundle returns the CA certificate contained in the provided Secret.Data.
 func GetCABundle(data map[string][]byte) []byte {
-	return data[certKey]
+	return data[CertKey]
 }
 
 func generateCertificate(hosts []string, notBefore, notAfter time.Time) ([]byte, []byte, error) {

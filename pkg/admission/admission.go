@@ -23,6 +23,7 @@ type ControllerContext struct {
 	LeaderSubscribeFunc func() <-chan struct{}
 	Stop                context.Context
 	Client              kubernetes.Interface
+	LocalPath           string
 	InformerResync      time.Duration
 	ExtraSyncWait       time.Duration
 	config.Config
@@ -60,6 +61,7 @@ func Start(ctx ControllerContext) error {
 	secretController := controller.NewController(
 		ctx.Client,
 		secretInformers.Core().V1().Secrets(),
+		ctx.LocalPath,
 		ctx.IsLeaderFunc,
 		ctx.LeaderSubscribeFunc(),
 		secretConfig,
