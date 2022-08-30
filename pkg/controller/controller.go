@@ -43,7 +43,7 @@ type Controller struct {
 
 func InitializeLocalCert(config config.Config, path string) error {
 	dnsNames := generateDNSNames(config.GetNs(), config.GetSvc())
-	data, err := certificate.GenerateSecretData(notAfter(config.GetCertValidityBound()), notBefore(), dnsNames)
+	data, err := certificate.GenerateSecretData(notBefore(), notAfter(config.GetCertValidityBound()), dnsNames)
 	if err != nil {
 		return err
 	}
@@ -55,6 +55,7 @@ func InitializeLocalCert(config config.Config, path string) error {
 	if err != nil {
 		return err
 	}
+	log.Infof("Successfully stored the certificate and the key locally", "path", path)
 	return nil
 }
 
@@ -85,10 +86,7 @@ func NewController(client kubernetes.Interface, secretInformer coreinformers.Sec
 // events after sync'ing the informer's cache.
 func (c *Controller) Run(stopCh <-chan struct{}) {
 	defer c.queue.ShutDown()
-	log.WithFields(log.Fields{
-		"namespace": c.config.GetNs(),
-		"name":      c.config.GetName(),
-	}).Info("Starting secrets controller")
+	log.Infof("Starting secrets controller", "namespace", c.config.GetNs(), "name", c.config.GetName())
 
 	defer log.Info("Stopping secrets controller")
 
@@ -112,10 +110,7 @@ func (c *Controller) enqueueOnLeaderNotif(stop <-chan struct{}) {
 	for {
 		select {
 		case <-c.isLeaderNotif:
-			log.WithFields(log.Fields{
-				"namespace": c.config.GetNs(),
-				"name":      c.config.GetName(),
-			}).Info("Got a leader notification, enqueuing a reconciliation")
+			log.Info("Got a leader notification, enqueuing a reconciliation", "namespace", c.config.GetNs(), "name", c.config.GetName())
 			c.triggerReconciliation()
 		case <-stop:
 			return
@@ -154,14 +149,11 @@ func (c *Controller) handleUpdate(oldObj, newObj interface{}) {
 func (c *Controller) enqueue(obj interface{}) {
 	key, err := cache.MetaNamespaceKeyFunc(obj)
 	if err != nil {
-		log.WithFields(log.Fields{
-			"error":  err,
-			"object": obj,
-		}).Error("Couldn't get key, adding it to the queue with an unnamed key")
+		log.Errorf("Couldn't get key, adding it to the queue with an unnamed key", "error", err, "object", obj)
 		c.queue.Add(struct{}{})
 		return
 	}
-	log.WithFields(log.Fields{"key": key}).Debug("Adding object with key to the queue")
+	log.Debug("Adding object with key to the queue", "key", key)
 	c.queue.Add(key)
 }
 
@@ -186,22 +178,15 @@ func (c *Controller) processNextWorkItem() bool {
 		return false
 	}
 	defer c.queue.Done(key)
-	log.WithFields(log.Fields{"key": key}).Info("Processing key")
+	log.Infof("Processing key", "key", key)
 	if err := c.reconcile(); err != nil {
 		c.requeue(key)
-		log.WithFields(log.Fields{
-			"namespace": c.config.GetNs(),
-			"name":      c.config.GetName(),
-			"error":     err,
-		}).Error("Couldn't reconcile Secret")
+		log.Errorf("Couldn't reconcile Secret", "namespace", c.config.GetNs(), "name", c.config.GetName(), "error", err)
 		return true
 	}
 
 	c.queue.Forget(key)
-	log.WithFields(log.Fields{
-		"namespace": c.config.GetNs(),
-		"name":      c.config.GetName(),
-	}).Info("Secret reconciled successfully")
+	log.Infof("Secret reconciled successfully", "namespace", c.config.GetNs(), "name", c.config.GetName())
 	return true
 }
 
@@ -210,10 +195,7 @@ func (c *Controller) reconcile() error {
 	secret, err := c.secretsLister.Secrets(c.config.GetNs()).Get(c.config.GetName())
 	if err != nil {
 		if errors.IsNotFound(err) {
-			log.WithFields(log.Fields{
-				"namespace": c.config.GetNs(),
-				"name":      c.config.GetName(),
-			}).Info("Secret was not found, creating it")
+			log.Infof("Secret was not found, creating it", "namespace", c.config.GetNs(), "name", c.config.GetName())
 			// Create the Secret if it doesn't exist
 			return c.createSecret()
 		}
@@ -228,9 +210,7 @@ func (c *Controller) reconcile() error {
 	// Check the certificate expiration date and refresh it if needed
 	durationBeforeExpiration := certificate.GetDurationBeforeExpiration(cert)
 	if durationBeforeExpiration < c.config.GetCertExpiration() {
-		log.WithFields(log.Fields{
-			"durationBeforeExpiration": durationBeforeExpiration.String(),
-		}).Info("The certificate is expiring soon, refreshing it")
+		log.Warningf("The certificate is expiring soon, refreshing it", "durationBeforeExpiration", durationBeforeExpiration.String())
 		return c.updateSecret(secret)
 	}
 
@@ -239,27 +219,28 @@ func (c *Controller) reconcile() error {
 		log.Info("The certificate DNS names are outdated, updating the certificate")
 		return c.updateSecret(secret)
 	}
-	log.WithFields(log.Fields{
-		"durationBeforeExpiration": durationBeforeExpiration.String(),
-	}).Info("The certificate is up-to-date, doing nothing")
+	log.Debugf("The certificate is up-to-date, doing nothing", "durationBeforeExpiration", durationBeforeExpiration.String())
 	return nil
 }
 
 // createSecret creates a new Secret object with a new certificate
 func (c *Controller) createSecret() error {
+	// I could check if it exists locally
 	data, err := certificate.GenerateSecretData(notBefore(), notAfter(c.config.GetCertValidityBound()), c.dnsNames)
 	if err != nil {
 		return fmt.Errorf("failed to generate the Secret data: %v", err)
 	}
 
+	namespace := c.config.GetNs()
+	name := c.config.GetName()
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: c.config.GetNs(),
-			Name:      c.config.GetName(),
+			Namespace: namespace,
+			Name:      name,
 		},
 		Data: data,
 	}
-	log.Info("Creating Secret")
+	log.Infof("Creating Secret", "name", name, "namespace", namespace)
 	_, err = c.clientSet.CoreV1().Secrets(c.config.GetNs()).Create(context.TODO(), secret, metav1.CreateOptions{})
 	if err != nil {
 		return err

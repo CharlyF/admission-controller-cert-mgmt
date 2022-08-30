@@ -72,7 +72,7 @@ func Start(ctx ControllerContext) error {
 	secretInformers.Start(stopCh)
 	err := controller.SyncInformers(secretInformers.Core().V1().Secrets().Informer(), ctx.ExtraSyncWait)
 	if err != nil {
-		log.WithFields(log.Fields{"error": err}).Error("Could not sync Informers")
+		log.Errorf("Could not sync Informers", "error", err)
 		return err
 	}
 	<-ctx.Stop.Done()
