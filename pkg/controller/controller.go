@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"hash/fnv"
 	"os"
@@ -47,12 +48,7 @@ func InitializeLocalCert(config config.Config, path string) error {
 	if err != nil {
 		return err
 	}
-	err = os.WriteFile(filepath.Join(path, certificate.CertKey), data[certificate.CertKey], 0644)
-	if err != nil {
-		return err
-	}
-	err = os.WriteFile(filepath.Join(path, certificate.PrivateKey), data[certificate.PrivateKey], 0644)
-	if err != nil {
+	if err := writeCertLocally(path, data); err != nil {
 		return err
 	}
 	log.Infof("Successfully stored the certificate and the key locally", "path", path)
@@ -225,12 +221,39 @@ func (c *Controller) reconcile() error {
 
 // createSecret creates a new Secret object with a new certificate
 func (c *Controller) createSecret() error {
-	// I could check if it exists locally
+	var data map[string][]byte
+	var certLocal []byte
+	var keyLocal []byte
+	var errCert, errKey error
 	data, err := certificate.GenerateSecretData(notBefore(), notAfter(c.config.GetCertValidityBound()), c.dnsNames)
 	if err != nil {
 		return fmt.Errorf("failed to generate the Secret data: %v", err)
 	}
 
+	// check if it exists locally
+	if c.hostPath != "" {
+		certPath := filepath.Join(c.hostPath, certificate.CertKey)
+		certLocal, errCert = os.ReadFile(certPath)
+		if err != nil {
+			log.Errorf("Unable to find certificate already created locally", "path", certPath)
+		}
+		keyPath := filepath.Join(c.hostPath, certificate.PrivateKey)
+		keyLocal, errKey = os.ReadFile(keyPath)
+		if err != nil {
+			log.Errorf("Unable to find the private key already created locally", "path", keyPath)
+		}
+		if errCert != nil || errKey != nil {
+			// write locally if either couldn't be found.
+			if err := writeCertLocally(c.hostPath, data); err != nil {
+				return err
+			}
+		}
+		if _, err := tls.X509KeyPair(certLocal, keyLocal); err != nil {
+			// if cert local is good
+			log.Infof("Using already existing locally stored certificate")
+			data[certificate.CertKey], data[certificate.PrivateKey] = certLocal, keyLocal
+		}
+	}
 	namespace := c.config.GetNs()
 	name := c.config.GetName()
 	secret := &corev1.Secret{
@@ -240,20 +263,10 @@ func (c *Controller) createSecret() error {
 		},
 		Data: data,
 	}
-	log.Infof("Creating Secret", "name", name, "namespace", namespace)
+	log.Infof("Creating Secret to store the certificate", "name", name, "namespace", namespace)
 	_, err = c.clientSet.CoreV1().Secrets(c.config.GetNs()).Create(context.TODO(), secret, metav1.CreateOptions{})
 	if err != nil {
 		return err
-	}
-	if c.hostPath != "" {
-		err = os.WriteFile(filepath.Join(c.hostPath, certificate.CertKey), data[certificate.CertKey], 0644)
-		if err != nil {
-			return err
-		}
-		err = os.WriteFile(filepath.Join(c.hostPath, certificate.PrivateKey), data[certificate.PrivateKey], 0644)
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -272,14 +285,22 @@ func (c *Controller) updateSecret(secret *corev1.Secret) error {
 		return err
 	}
 	if c.hostPath != "" {
-		err = os.WriteFile(filepath.Join(c.hostPath, certificate.CertKey), data[certificate.CertKey], 0644)
-		if err != nil {
+		log.Infof("Updating locally stored certificate") // Move to debug
+		if err := writeCertLocally(c.hostPath, data); err != nil {
 			return err
 		}
-		err = os.WriteFile(filepath.Join(c.hostPath, certificate.PrivateKey), data[certificate.PrivateKey], 0644)
-		if err != nil {
-			return err
-		}
+	}
+	return nil
+}
+
+func writeCertLocally(path string, data map[string][]byte) (err error) {
+	err = os.WriteFile(filepath.Join(path, certificate.CertKey), data[certificate.CertKey], 0644)
+	if err != nil {
+		return err
+	}
+	err = os.WriteFile(filepath.Join(path, certificate.PrivateKey), data[certificate.PrivateKey], 0644)
+	if err != nil {
+		return err
 	}
 	return nil
 }
