@@ -294,6 +294,10 @@ func (c *Controller) updateSecret(secret *corev1.Secret) error {
 }
 
 func writeCertLocally(path string, data map[string][]byte) (err error) {
+	err = os.WriteFile(filepath.Join(path, "cacert.pem"), certificate.GetCABundle(data), 0644)
+	if err != nil {
+		return err
+	}
 	err = os.WriteFile(filepath.Join(path, certificate.CertKey), data[certificate.CertKey], 0644)
 	if err != nil {
 		return err
