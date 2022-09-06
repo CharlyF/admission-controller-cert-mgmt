@@ -149,7 +149,7 @@ func (c *Controller) enqueue(obj interface{}) {
 		c.queue.Add(struct{}{})
 		return
 	}
-	log.Debug("Adding object with key to the queue", "key", key)
+	log.Infof("Adding object with key to the queue", "key", key)
 	c.queue.Add(key)
 }
 
@@ -170,6 +170,7 @@ func (c *Controller) run() {
 // Always returns true unless the work queue was shutdown.
 func (c *Controller) processNextWorkItem() bool {
 	key, shutdown := c.queue.Get()
+	log.Infof("processing shutdown?", "key", key, "shutdown", shutdown)
 	if shutdown {
 		return false
 	}

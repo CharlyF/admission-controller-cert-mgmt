@@ -44,7 +44,7 @@ func Start(ctx ControllerContext) error {
 
 	secretInformers := informers.NewSharedInformerFactoryWithOptions(
 		ctx.Client,
-		ctx.InformerResync*time.Second,
+		ctx.InformerResync,
 		informers.WithTweakListOptions(optionsForService),
 		informers.WithNamespace(ctx.GetNs()),
 	)
